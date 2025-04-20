@@ -159,101 +159,6 @@ const ColorAnalyzer: React.FC = () => {
     return [r, g, b];
   };
 
-  const analyzeImage = async (imageDataUrl: string) => {
-    setIsAnalyzing(true);
-    setError(null);
-    let canvas: HTMLCanvasElement | null = null;
-
-    try {
-      const img = new Image();
-      img.src = imageDataUrl;
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = () => reject(new Error('Failed to load image'));
-      });
-
-      canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        throw new Error('Failed to get canvas context');
-      }
-
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const pixels: RGB[] = [];
-
-      // Sample every 4th pixel for better performance
-      for (let i = 0; i < imageData.data.length; i += 16) {
-        pixels.push({
-          r: imageData.data[i],
-          g: imageData.data[i + 1],
-          b: imageData.data[i + 2],
-        });
-      }
-
-      // Calculate average brightness and saturation
-      let totalBrightness = 0;
-      let totalSaturation = 0;
-      const dominantHues: number[] = [];
-
-      pixels.forEach(pixel => {
-        const hsl = rgbToHsl(pixel.r, pixel.g, pixel.b);
-        totalBrightness += hsl.l;
-        totalSaturation += hsl.s;
-        dominantHues.push(hsl.h);
-      });
-
-      const avgBrightness = totalBrightness / pixels.length;
-      const avgSaturation = totalSaturation / pixels.length;
-      const undertone = determineUndertone(dominantHues);
-      const seasonType = determineSeasonType(undertone, avgBrightness, avgSaturation);
-
-      // Generate color palettes
-      const baseHue = dominantHues.reduce((a, b) => a + b, 0) / dominantHues.length;
-      const clothingColors = generateHarmonizedPalette(baseHue, undertone);
-      const makeupColors = generateHarmonizedPalette((baseHue + 180) % 360, undertone);
-
-      const palette: ColorPalette = {
-        undertone,
-        seasonType,
-        clothing: clothingColors.map((color, index) => {
-          const rgb = hexToRgb(color) || { r: 0, g: 0, b: 0 };
-          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-          return {
-            color,
-            name: getColorName(hsl.h, hsl.s, hsl.l),
-            description: getColorDescription(index, undertone),
-          };
-        }),
-        makeup: makeupColors.map((color, index) => {
-          const rgb = hexToRgb(color) || { r: 0, g: 0, b: 0 };
-          const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
-          return {
-            color,
-            name: getColorName(hsl.h, hsl.s, hsl.l),
-            description: getMakeupDescription(index, undertone),
-          };
-        }),
-      };
-
-      setColorPalette(palette);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      setError(errorMessage);
-      console.error('Error analyzing image:', error);
-    } finally {
-      setIsAnalyzing(false);
-      if (canvas) {
-        // Clean up canvas
-        canvas.width = 0;
-        canvas.height = 0;
-      }
-    }
-  };
-
   const hexToRgb = (hex: string): RGB | null => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -288,13 +193,115 @@ const ColorAnalyzer: React.FC = () => {
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     const reader = new FileReader();
-    reader.onload = () => {
+    
+    reader.onload = async () => {
       const dataUrl = reader.result as string;
       setImage(dataUrl);
-      analyzeImage(dataUrl);
+      
+      setIsAnalyzing(true);
+      setError(null);
+      let canvas: HTMLCanvasElement | null = null;
+
+      try {
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error('Failed to load image'));
+        });
+
+        canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Failed to get canvas context');
+        }
+
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixels: RGB[] = [];
+
+        // Sample every 4th pixel for better performance
+        for (let i = 0; i < imageData.data.length; i += 16) {
+          pixels.push({
+            r: imageData.data[i],
+            g: imageData.data[i + 1],
+            b: imageData.data[i + 2],
+          });
+        }
+
+        // Calculate average brightness and saturation
+        let totalBrightness = 0;
+        let totalSaturation = 0;
+        const dominantHues: number[] = [];
+
+        pixels.forEach(pixel => {
+          const hsl = rgbToHsl(pixel.r, pixel.g, pixel.b);
+          totalBrightness += hsl.l;
+          totalSaturation += hsl.s;
+          dominantHues.push(hsl.h);
+        });
+
+        const avgBrightness = totalBrightness / pixels.length;
+        const avgSaturation = totalSaturation / pixels.length;
+        const undertone = determineUndertone(dominantHues);
+        const seasonType = determineSeasonType(undertone, avgBrightness, avgSaturation);
+
+        // Generate color palettes
+        const baseHue = dominantHues.reduce((a, b) => a + b, 0) / dominantHues.length;
+        const clothingColors = generateHarmonizedPalette(baseHue, undertone);
+        const makeupColors = generateHarmonizedPalette((baseHue + 180) % 360, undertone);
+
+        const palette: ColorPalette = {
+          undertone,
+          seasonType,
+          clothing: clothingColors.map((color, index) => {
+            const rgb = hexToRgb(color) || { r: 0, g: 0, b: 0 };
+            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            return {
+              color,
+              name: getColorName(hsl.h, hsl.s, hsl.l),
+              description: getColorDescription(index, undertone),
+            };
+          }),
+          makeup: makeupColors.map((color, index) => {
+            const rgb = hexToRgb(color) || { r: 0, g: 0, b: 0 };
+            const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+            return {
+              color,
+              name: getColorName(hsl.h, hsl.s, hsl.l),
+              description: getMakeupDescription(index, undertone),
+            };
+          }),
+        };
+
+        setColorPalette(palette);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        setError(errorMessage);
+        console.error('Error analyzing image:', error);
+      } finally {
+        setIsAnalyzing(false);
+        if (canvas) {
+          // Clean up canvas
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+      }
     };
     reader.readAsDataURL(file);
-  }, [analyzeImage]);
+  }, [
+    rgbToHsl,
+    determineUndertone,
+    determineSeasonType,
+    generateHarmonizedPalette,
+    hexToRgb,
+    getColorName,
+    getColorDescription,
+    getMakeupDescription
+  ]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
