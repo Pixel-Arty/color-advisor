@@ -38,13 +38,13 @@ const ColorAnalyzer: React.FC = () => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = useCallback(() => {
     setImage(null);
     setColorPalette(null);
     setError(null);
-  };
+  }, []);
 
-  const rgbToHsl = (r: number, g: number, b: number): HSL => {
+  const rgbToHsl = useCallback((r: number, g: number, b: number): HSL => {
     r /= 255;
     g /= 255;
     b /= 255;
@@ -75,17 +75,16 @@ const ColorAnalyzer: React.FC = () => {
     }
 
     return { h: h * 360, s: s * 100, l: l * 100 };
-  };
+  }, []);
 
-  const rgbToHex = (r: number, g: number, b: number): string => {
+  const rgbToHex = useCallback((r: number, g: number, b: number): string => {
     return '#' + [r, g, b].map(x => {
       const hex = x.toString(16);
       return hex.length === 1 ? '0' + hex : hex;
     }).join('');
-  };
+  }, []);
 
-  const getColorName = (h: number, s: number, l: number): string => {
-    // Basic color naming logic
+  const getColorName = useCallback((h: number, s: number, l: number): string => {
     if (l < 20) return 'Black';
     if (l > 80) return 'White';
     if (s < 20) return l > 50 ? 'Light Gray' : 'Dark Gray';
@@ -99,14 +98,14 @@ const ColorAnalyzer: React.FC = () => {
     if (hue >= 210 && hue < 270) return 'Blue';
     if (hue >= 270 && hue < 330) return 'Purple';
     return 'Red';
-  };
+  }, []);
 
-  const determineUndertone = (dominantHues: number[]): string => {
+  const determineUndertone = useCallback((dominantHues: number[]): string => {
     const avgHue = dominantHues.reduce((a, b) => a + b, 0) / dominantHues.length;
     return avgHue < 180 ? 'Warm' : 'Cool';
-  };
+  }, []);
 
-  const determineSeasonType = (undertone: string, brightness: number, saturation: number): string => {
+  const determineSeasonType = useCallback((undertone: string, brightness: number, saturation: number): string => {
     if (undertone === 'Warm') {
       return brightness > 50
         ? saturation > 50 ? 'Spring' : 'Spring-Summer'
@@ -116,25 +115,9 @@ const ColorAnalyzer: React.FC = () => {
         ? saturation > 50 ? 'Summer' : 'Spring-Summer'
         : saturation > 50 ? 'Winter' : 'Autumn-Winter';
     }
-  };
+  }, []);
 
-  const generateHarmonizedPalette = (baseHue: number, undertone: string): string[] => {
-    const palette: string[] = [];
-    const hueStep = undertone === 'Warm' ? 30 : 45;
-    
-    for (let i = 0; i < 5; i++) {
-      const hue = (baseHue + i * hueStep) % 360;
-      const saturation = 65 + Math.random() * 20;
-      const lightness = 45 + Math.random() * 25;
-      
-      const [r, g, b] = hslToRgb(hue / 360, saturation / 100, lightness / 100);
-      palette.push(rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)));
-    }
-    
-    return palette;
-  };
-
-  const hslToRgb = (h: number, s: number, l: number): [number, number, number] => {
+  const hslToRgb = useCallback((h: number, s: number, l: number): [number, number, number] => {
     let r, g, b;
 
     if (s === 0) {
@@ -157,18 +140,34 @@ const ColorAnalyzer: React.FC = () => {
     }
 
     return [r, g, b];
-  };
+  }, []);
 
-  const hexToRgb = (hex: string): RGB | null => {
+  const generateHarmonizedPalette = useCallback((baseHue: number, undertone: string): string[] => {
+    const palette: string[] = [];
+    const hueStep = undertone === 'Warm' ? 30 : 45;
+    
+    for (let i = 0; i < 5; i++) {
+      const hue = (baseHue + i * hueStep) % 360;
+      const saturation = 65 + Math.random() * 20;
+      const lightness = 45 + Math.random() * 25;
+      
+      const [r, g, b] = hslToRgb(hue / 360, saturation / 100, lightness / 100);
+      palette.push(rgbToHex(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)));
+    }
+    
+    return palette;
+  }, [hslToRgb, rgbToHex]);
+
+  const hexToRgb = useCallback((hex: string): RGB | null => {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
       r: parseInt(result[1], 16),
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
     } : null;
-  };
+  }, []);
 
-  const getColorDescription = (index: number, undertone: string): string => {
+  const getColorDescription = useCallback((index: number, undertone: string): string => {
     const descriptions = [
       'Perfect for statement pieces and focal points',
       'Great for accessories and accent pieces',
@@ -177,9 +176,9 @@ const ColorAnalyzer: React.FC = () => {
       'Works well for everyday basics'
     ];
     return descriptions[index];
-  };
+  }, []);
 
-  const getMakeupDescription = (index: number, undertone: string): string => {
+  const getMakeupDescription = useCallback((index: number, undertone: string): string => {
     const descriptions = [
       'Perfect for bold lip colors',
       'Ideal for eye shadows and liners',
@@ -188,7 +187,7 @@ const ColorAnalyzer: React.FC = () => {
       'Works well for natural everyday looks'
     ];
     return descriptions[index];
-  };
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
