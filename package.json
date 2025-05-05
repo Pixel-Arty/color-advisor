@@ -1,7 +1,7 @@
 {
   "name": "color-advisor",
   "version": "0.1.0",
-  "homepage": "/pixel-arty/",
+  "homepage": "https://pixel-arty.github.io/color-advisor/",
   "private": true,
   "dependencies": {
     "@emotion/react": "^11.11.0",
